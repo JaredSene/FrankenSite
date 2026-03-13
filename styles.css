@@ -23,6 +23,44 @@ pre {
     transform: rotate(-0.8deg);
 }
 
+#franken-content {
+    transition: filter 0.2s ease;
+}
+
+#franken-logo {
+    margin: 20px auto;
+    width: fit-content;
+    cursor: pointer;
+    user-select: none;
+    transition: font-size 0.2s ease, transform 0.2s ease;
+}
+
+#franken-logo.playing {
+    font-size: 0.75rem;
+    line-height: 1;
+    transform: rotate(0deg);
+    width: 42ch;
+    height: auto;
+    overflow: hidden;
+}
+
+#tap-prompt {
+    opacity: 0;
+    height: 1.2rem;
+    margin: 0 auto 16px;
+    font-family: 'Special Elite', monospace;
+    letter-spacing: 1px;
+    transition: opacity 0.4s ease;
+}
+
+#tap-prompt.show {
+    opacity: 1;
+}
+
+#franken-content.in-game > :not(#franken-logo) {
+    display: none;
+}
+
 h1 {
     font-family: 'Special Elite', monospace;
     font-size: 2rem;
