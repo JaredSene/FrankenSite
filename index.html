@@ -4,8 +4,7 @@
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-
-        <pre>
+        <pre id="orpheus-logo" title="hmm... i wonder if you tapped that" style="cursor:pointer;">
 ___________                     __                   _________.__  __          
 \_   _____/___________    ____ |  | __ ____   ____  /   _____/|__|/  |_  ____  
  |    __) \_  __ \__  \  /    \|  |/ // __ \ /    \ \_____  \ |  \   __\/ __ \ 
@@ -42,5 +41,130 @@ ___________                     __                   _________.__  __
         <hr>
         <img src="https://cdn.hackclub.com/019ce451-2b49-7033-8372-700973251e73/flag-standalone.png">
 
+    <script>
+        (function () {
+            const logo = document.getElementById("orpheus-logo");
+            const screen = logo;
+            const baseTitle = document.title || "FrankenSite";
+            const baseLogoText = logo.textContent;
+            const baseLogoStyle = logo.getAttribute("style") || "";
+            const gameStyle = "display:block;background:#000;color:#fff;padding:12px;border:2px solid #fff;font-family:monospace;font-size:14px;line-height:1;max-width:95vw;overflow:auto;transform:none;";
+            const mapTemplate = [
+                "########################",
+                "#                      #",
+                "#      *              *#",
+                "#   ###########        #",
+                "#                      #",
+                "#    ##########        #",
+                "#      *               #",
+                "#  ###          *     C#",
+                "########################"
+            ];
+            let state = null;
+            let ticker = null;
+
+            function buildState() {
+                const grid = mapTemplate.map((row) => row.split(""));
+                let total = 0;
+                for (let y = 0; y < grid.length; y++) for (let x = 0; x < grid[y].length; x++) if (grid[y][x] === "*") total++;
+                return { grid, x: 2, y: 7, vy: 0, grounded: false, left: false, right: false, jump: false, jumpsUsed: 0, pieces: 0, total, doubleJump: false, sprint: false, compiling: false, done: false };
+            }
+
+            function blocked(x, y) {
+                return !state.grid[y] || !state.grid[y][x] || state.grid[y][x] === "#";
+            }
+            function tile(x, y) { return state.grid[y] && state.grid[y][x]; }
+            function draw() {
+                screen.textContent = state.grid.map((row, y) => row.map((cell, x) => x === state.x && y === state.y ? "W" : cell).join("")).join("\n");
+            }
+            function updateTitle(msg) { document.title = `${msg} | code ${state.pieces}/${state.total} | compile${state.done ? ": win" : ""}`; }
+            function collect(x, y) {
+                if (state.grid[y][x] === "*") {
+                    state.grid[y][x] = " ";
+                    state.pieces += 1;
+                    if (state.pieces === 1) state.doubleJump = true;
+                    if (state.pieces === 2) state.sprint = true;
+                    updateTitle(state.pieces === state.total ? "All code found" : "Feature added");
+                }
+            }
+            function triggerCompile() {
+                if (state.compiling || state.done || state.pieces < state.total || tile(state.x, state.y) !== "C") return;
+                state.compiling = true;
+                const steps = ["npm run build", "npm run build.", "npm run build..", "npm run build...", "BUILD SUCCESS"];
+                let i = 0;
+                const iv = setInterval(() => {
+                    updateTitle(steps[i] || steps[steps.length - 1]);
+                    i += 1;
+                    if (i >= steps.length) {
+                        clearInterval(iv);
+                        state.compiling = false;
+                        state.done = true;
+                        updateTitle("You Win");
+                    }
+                }, 350);
+            }
+            function physics() {
+                const speed = state.sprint ? 2 : 1;
+                if (state.left && !state.compiling) state.x -= speed;
+                if (state.right && !state.compiling) state.x += speed;
+                if (state.left || state.right) {
+                    if (blocked(state.x, state.y)) state.x = state.left ? state.x + speed : state.x - speed;
+                }
+                if (state.jump && (state.grounded || (state.doubleJump && state.jumpsUsed < 2))) {
+                    const wasGrounded = state.grounded;
+                    state.vy = -2;
+                    state.jump = false;
+                    state.grounded = false;
+                    state.jumpsUsed = wasGrounded ? 1 : state.jumpsUsed + 1;
+                }
+                state.vy = Math.min(2, state.vy + 1);
+                let step = state.vy;
+                for (let i = 0; i < Math.abs(step); i++) {
+                    const next = state.y + Math.sign(step);
+                    if (blocked(state.x, next)) { state.vy = 0; if (step > 0) { state.grounded = true; state.jumpsUsed = 0; } break; }
+                    state.y = next;
+                }
+                if (tile(state.x, state.y) === "C") triggerCompile();
+                collect(state.x, state.y);
+                draw();
+                updateTitle(state.done ? "You Win" : state.compiling ? "building..." : "use arrows | land on C");
+            }
+
+            function start() {
+                if (ticker) return;
+                state = buildState();
+                screen.textContent = "";
+                screen.setAttribute("style", gameStyle);
+                document.addEventListener("keydown", onKey);
+                document.addEventListener("keyup", onKeyUp);
+                updateTitle("Game start");
+                draw();
+                ticker = setInterval(physics, 90);
+            }
+            function stop() {
+                clearInterval(ticker);
+                ticker = null;
+                document.removeEventListener("keydown", onKey);
+                document.removeEventListener("keyup", onKeyUp);
+                screen.textContent = baseLogoText;
+                screen.setAttribute("style", baseLogoStyle);
+                state = null;
+                document.title = baseTitle;
+            }
+            function onKey(event) {
+                if (!state || event.key === "Escape") return stop();
+                if (event.key === "ArrowLeft") state.left = true;
+                if (event.key === "ArrowRight") state.right = true;
+                if (event.key === "ArrowUp") state.jump = true;
+            }
+            function onKeyUp(event) {
+                if (!state) return;
+                if (event.key === "ArrowLeft") state.left = false;
+                if (event.key === "ArrowRight") state.right = false;
+            }
+            logo.addEventListener("click", start);
+            logo.addEventListener("touchstart", start, { passive: true });
+        })();
+    </script>
     </body>
 </html>
